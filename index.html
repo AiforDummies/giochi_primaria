@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dentro o Fuori? - Schede Didattiche Interattive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Fredoka+One&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Comic Neue', cursive, sans-serif;
+            background-color: #f4f4f0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .title-font {
+            font-family: 'Fredoka One', cursive;
+        }
+        .worksheet-border {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        /* Style for interactive pencil selection */
+        .pencil-btn {
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .pencil-btn.active {
+            transform: translateY(-8px) scale(1.1);
+            filter: drop-shadow(0 6px 8px rgba(0,0,0,0.25));
+        }
+        /* Custom pulse for hint */
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.85; transform: scale(1.03); }
+        }
+        .pulse-hint {
+            animation: pulse-subtle 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between p-2 md:p-6 text-slate-800">
+
+    <!-- Header e Titolo -->
+    <header class="w-full max-w-4xl text-center mb-4">
+        <div class="inline-block bg-amber-100 border-2 border-amber-300 rounded-2xl px-6 py-2 shadow-sm mb-2">
+            <h1 class="title-font text-2xl md:text-4xl text-amber-800 tracking-wide">
+                ✏️ Dentro o Fuori? 🎨
+            </h1>
+            <p class="text-xs md:text-sm text-amber-700 font-bold">Scheda Interattiva di Topologia e Pregrafismo</p>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER - SCHEDA SCOLASTICA -->
+    <main class="w-full max-w-4xl bg-white border-4 border-slate-300 rounded-3xl p-4 md:p-8 worksheet-border flex flex-col items-center relative">
+        
+        <!-- Istruzioni principali stile scheda scolastica -->
+        <section class="w-full bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-4 mb-4 text-center">
+            <h2 class="text-lg md:text-2xl font-bold text-slate-800 leading-snug">
+                Istruzioni: Colora in <span class="text-red-600 underline decoration-red-400 decoration-wavy">ROSSO</span> gli animali <span class="uppercase tracking-wider text-red-600 font-extrabold">FUORI</span> dalla linea e in <span class="text-slate-900 underline decoration-slate-400 decoration-wavy">NERO</span> quelli <span class="uppercase tracking-wider text-slate-900 font-extrabold">DENTRO</span> la linea.
+            </h2>
+        </section>
+
+        <!-- Selettore Matite / Strumenti -->
+        <section class="flex justify-center items-center gap-6 md:gap-12 my-2 z-10 w-full">
+            <button id="btn-red" onclick="selectColor('red')" class="pencil-btn active flex flex-col items-center group focus:outline-none">
+                <div class="w-12 h-12 md:w-16 md:h-16 rounded-full bg-red-500 border-4 border-white shadow-md flex items-center justify-center text-white text-2xl md:text-3xl group-hover:scale-105 transition-transform">
+                    🖌️
+                </div>
+                <span class="mt-1 font-bold text-sm md:text-base text-red-600">Rosso (FUORI)</span>
+            </button>
+
+            <button id="btn-black" onclick="selectColor('black')" class="pencil-btn flex flex-col items-center group focus:outline-none">
+                <div class="w-12 h-12 md:w-16 md:h-16 rounded-full bg-slate-800 border-4 border-white shadow-md flex items-center justify-center text-white text-2xl md:text-3xl group-hover:scale-105 transition-transform">
+                    🖌️
+                </div>
+                <span class="mt-1 font-bold text-sm md:text-base text-slate-800">Nero (DENTRO)</span>
+            </button>
+        </section>
+
+        <!-- Area di lavoro / Canvas -->
+        <div class="relative w-full aspect-[4/3] max-h-[550px] bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-inner my-2 cursor-pointer touch-none" id="canvas-container">
+            <canvas id="gameCanvas" class="w-full h-full block"></canvas>
+        </div>
+
+        <!-- Pulsanti di Azione e Controllo -->
+        <footer class="w-full flex flex-wrap justify-between items-center gap-4 mt-4 pt-2 border-t-2 border-slate-100">
+            <button onclick="generateNewExercise()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold text-base md:text-lg px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95 flex items-center gap-2">
+                🔄 Nuova Scheda
+            </button>
+
+            <div class="flex items-center gap-3">
+                <button onclick="checkAnswers()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-base md:text-xl px-8 py-3 rounded-2xl shadow-lg transition-all active:scale-95 pulse-hint flex items-center gap-2">
+                    ✅ VerificaRisposta
+                </button>
+            </div>
+        </footer>
+    </main>
+
+    <!-- Footer Copyright Stile Scheda Stampabile -->
+    <footer class="mt-4 text-xs text-slate-500 text-center font-mono">
+        © SCHEDE DIDATTICHE E PREGRAFISMO INTERATTIVO • PER LA SCUOLA DELL'INFANZIA E PRIMARIA
+    </footer>
+
+    <!-- Modal per il Feedback di successo -->
+    <div id="feedback-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full text-center border-4 border-emerald-400 shadow-2xl transform transition-all scale-95 opacity-0" id="modal-content">
+            <div class="text-6xl mb-3">🌟 Bravo! 🌟</div>
+            <h3 class="title-font text-2xl md:text-3xl text-emerald-600 mb-2">Ottimo Lavoro!</h3>
+            <p class="text-slate-600 font-bold text-base md:text-lg mb-6" id="modal-message">Hai identificato correttamente tutti gli animali dentro e fuori dal recinto!</p>
+            <button onclick="closeModalAndRefresh()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg py-3 rounded-2xl shadow-md transition-all active:scale-95">
+                Prossimo Esercizio ➡️
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- COSTANTI E STATO ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        let currentColor = 'red'; // 'red' o 'black'
+        let polygonPoints = [];   // Punti del recinto
+        let animals = [];         // Array degli animali presenti nella scheda
+        const TOTAL_ANIMALS = 5;
+
+        // Disegni SVG per gli animali (percorsi per il Canvas2D)
+        const ANIMAL_TYPES = [
+            { id: 'cavallo', name: 'Cavallo', icon: '🐴' },
+            { id: 'mucca', name: 'Mucca', icon: '🐮' },
+            { id: 'lupo', name: 'Lupo', icon: '🐺' },
+            { id: 'coniglio', name: 'Coniglio', icon: '🐰' },
+            { id: 'gatto', name: 'Gatto', icon: '🐱' },
+            { id: 'cane', name: 'Cane', icon: '🐶' },
+            { id: 'scoiattolo', name: 'Scoiattolo', icon: '🐿️' },
+            { id: 'volpe', name: 'Volpe', icon: '🦊' }
+        ];
+
+        // --- SISTEMA AUDIO (SINTETIZZATO CON WEB AUDIO API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.08);
+            } else if (type === 'success') {
+                // Arpeggio di vittoria
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const noteOsc = audioCtx.createOscillator();
+                    const noteGain = audioCtx.createGain();
+                    noteOsc.connect(noteGain);
+                    noteGain.connect(audioCtx.destination);
+                    noteOsc.type = 'triangle';
+                    noteOsc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.1);
+                    noteGain.gain.setValueAtTime(0.2, audioCtx.currentTime + idx * 0.1);
+                    noteGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.1 + 0.3);
+                    noteOsc.start(audioCtx.currentTime + idx * 0.1);
+                    noteOsc.stop(audioCtx.currentTime + idx * 0.1 + 0.3);
+                });
+            } else if (type === 'error') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(120, audioCtx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+            }
+        }
+
+        function resizeCanvas() {
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            drawScene();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // --- SELEZIONE COLORE ---
+        function selectColor(color) {
+            currentColor = color;
+            document.getElementById('btn-red').classList.toggle('active', color === 'red');
+            document.getElementById('btn-black').classList.toggle('active', color === 'black');
+            playSound('click');
+        }
+
+        /**
+         * Determina matematicamente se un punto (x, y) si trova all'interno di un poligono chiuso.
+         * Utilizza l'algoritmo Ray-Casting.
+         */
+        function isPointInsidePolygon(point, vs) {
+            const x = point.x, y = point.y;
+            let inside = false;
+            for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+                const xi = vs[i].x, yi = vs[i].y;
+                const xj = vs[j].x, yj = vs[j].y;
+
+                const intersect = ((yi > y) !== (yj > y)) &&
+                    (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        /**
+         * Genera un recinto/linea chiusa casuale.
+         * Alterna forme organiche, geometriche o a stella per variabilità didattica.
+         */
+        function generateRandomPolygon() {
+            const points = [];
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            const shapeType = Math.floor(Math.random() * 3); // 0: Organico/Morbido, 1: Stella/Seghettato, 2: Rettangolare/Articolato
+
+            if (shapeType === 0) {
+                // Forma organica fluida
+                const numPoints = 12 + Math.floor(Math.random() * 8);
+                const baseRadius = Math.min(width, height) * 0.28;
+                for (let i = 0; i < numPoints; i++) {
+                    const angle = (i / numPoints) * Math.PI * 2;
+                    const radiusNoise = (Math.sin(i * 1.5) + Math.cos(i * 2.5)) * 0.35 + 1;
+                    const r = baseRadius * radiusNoise;
+                    points.push({
+                        x: centerX + Math.cos(angle) * r,
+                        y: centerY + Math.sin(angle) * r
+                    });
+                }
+            } else if (shapeType === 1) {
+                // Forma a stella o con grandi insenature
+                const numPoints = 10;
+                const outerRadius = Math.min(width, height) * 0.35;
+                const innerRadius = Math.min(width, height) * 0.18;
+                for (let i = 0; i < numPoints; i++) {
+                    const angle = (i / numPoints) * Math.PI * 2;
+                    const r = (i % 2 === 0) ? outerRadius : innerRadius;
+                    points.push({
+                        x: centerX + Math.cos(angle) * r,
+                        y: centerY + Math.sin(angle) * r
+                    });
+                }
+            } else {
+                // Forma a C o a ferro di cavallo (sfidante per la percezione dentro/fuori)
+                const numPoints = 16;
+                const rOuter = Math.min(width, height) * 0.35;
+                const rInner = Math.min(width, height) * 0.18;
+                for (let i = 0; i < numPoints; i++) {
+                    const angle = (i / numPoints) * Math.PI * 2;
+                    // Crea un rientro profondo da un lato
+                    let r = rOuter;
+                    if (angle > Math.PI * 0.3 && angle < Math.PI * 1.7) {
+                        r = (i % 2 === 0) ? rOuter : rInner * 1.2;
+                    }
+                    points.push({
+                        x: centerX + Math.cos(angle) * r,
+                        y: centerY + Math.sin(angle) * r
+                    });
+                }
+            }
+            return points;
+        }
+
+        function generateExercise() {
+            polygonPoints = generateRandomPolygon();
+            animals = [];
+
+            const width = canvas.width;
+            const height = canvas.height;
+            const margin = 60;
+
+            // Vogliamo assicurarci di avere sia animali DENTRO che FUORI per un buon esercizio
+            let insideCount = 0;
+            let outsideCount = 0;
+
+            let attempts = 0;
+            while (animals.length < TOTAL_ANIMALS && attempts < 200) {
+                attempts++;
+                const x = margin + Math.random() * (width - 2 * margin);
+                const y = margin + Math.random() * (height - 2 * margin);
+
+                const point = { x, y };
+                const isInside = isPointInsidePolygon(point, polygonPoints);
+
+                // Bilanciamento tra animali dentro e fuori
+                if (isInside && insideCount >= 3) continue;
+                if (!isInside && outsideCount >= 3) continue;
+
+                // Controlla che gli animali non siano troppo vicini tra loro
+                const tooClose = animals.some(a => {
+                    const dx = a.x - x;
+                    const dy = a.y - y;
+                    return Math.sqrt(dx * dx + dy * dy) < 70;
+                });
+
+                if (!tooClose) {
+                    const animalType = ANIMAL_TYPES[Math.floor(Math.random() * ANIMAL_TYPES.length)];
+                    animals.push({
+                        id: animals.length,
+                        type: animalType,
+                        x: x,
+                        y: y,
+                        radius: 30,
+                        isInside: isInside,
+                        currentColor: null, // null (non colorato), 'red', 'black'
+                        isCorrect: null
+                    });
+
+                    if (isInside) insideCount++;
+                    else outsideCount++;
+                }
+            }
+
+            drawScene();
+        }
+
+        function drawScene() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Disegna il Recinto / Linea Chiusa
+            if (polygonPoints.length > 0) {
+                ctx.beginPath();
+                ctx.moveTo(polygonPoints[0].x, polygonPoints[0].y);
+
+                // Usa curve morbide spline/bezier tra i punti
+                for (let i = 0; i < polygonPoints.length; i++) {
+                    const p0 = polygonPoints[i];
+                    const p1 = polygonPoints[(i + 1) % polygonPoints.length];
+                    const midX = (p0.x + p1.x) / 2;
+                    const midY = (p0.y + p1.y) / 2;
+                    ctx.quadraticCurveTo(p0.x, p0.y, midX, midY);
+                }
+
+                ctx.closePath();
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = '#1e293b'; // Slate scuro
+                ctx.fillStyle = '#f8fafc'; // SFONDO CHIARO DEL RECINTO
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // 2. Disegna gli Animali
+            animals.forEach(animal => {
+                ctx.save();
+                ctx.translate(animal.x, animal.y);
+
+                // Cerchio di evidenziazione / stato
+                ctx.beginPath();
+                ctx.arc(0, 0, animal.radius, 0, Math.PI * 2);
+
+                if (animal.currentColor === 'red') {
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 3;
+                    ctx.fill();
+                    ctx.stroke();
+                } else if (animal.currentColor === 'black') {
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.2)';
+                    ctx.strokeStyle = '#0f172a';
+                    ctx.lineWidth = 3;
+                    ctx.fill();
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.lineWidth = 2;
+                    ctx.fill();
+                    ctx.stroke();
+                }
+
+                // Disegna l'Emoji/Icona dell'animale
+                ctx.font = '36px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                // Effetto colore applicato all'icona (Filtro CSS in Canvas)
+                if (animal.currentColor === 'red') {
+                    ctx.filter = 'drop-shadow(0px 0px 2px #ef4444) hue-rotate(-50deg) saturate(3)';
+                } else if (animal.currentColor === 'black') {
+                    ctx.filter = 'grayscale(100%) brightness(0.3)';
+                } else {
+                    ctx.filter = 'none';
+                }
+
+                ctx.fillText(animal.type.icon, 0, 2);
+
+                // Ripristina filtri
+                ctx.filter = 'none';
+
+                // Indicatore di esito (Verifica)
+                if (animal.isCorrect === false) {
+                    ctx.font = 'bold 22px sans-serif';
+                    ctx.fillStyle = '#dc2626';
+                    ctx.fillText('❌', 18, -18);
+                } else if (animal.isCorrect === true) {
+                    ctx.font = 'bold 22px sans-serif';
+                    ctx.fillStyle = '#16a34a';
+                    ctx.fillText('⭐', 18, -18);
+                }
+
+                ctx.restore();
+            });
+        }
+
+        function handleInteraction(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            // Trova se l'utente ha toccato/cliccato un animale
+            const clickedAnimal = animals.find(a => {
+                const dx = a.x - x;
+                const dy = a.y - y;
+                return Math.sqrt(dx * dx + dy * dy) <= a.radius + 10;
+            });
+
+            if (clickedAnimal) {
+                clickedAnimal.currentColor = currentColor;
+                clickedAnimal.isCorrect = null; // Resetta la valutazione precedente al cambio
+                playSound('click');
+                drawScene();
+            }
+        }
+
+        canvas.addEventListener('click', (e) => {
+            handleInteraction(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (e.touches.length > 0) {
+                handleInteraction(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: false });
+
+        function checkAnswers() {
+            let allColored = true;
+            let allCorrect = true;
+
+            animals.forEach(animal => {
+                if (!animal.currentColor) {
+                    allColored = false;
+                } else {
+                    // Regola: ROSSO se FUORI, NERO se DENTRO
+                    const expectedColor = animal.isInside ? 'black' : 'red';
+                    if (animal.currentColor === expectedColor) {
+                        animal.isCorrect = true;
+                    } else {
+                        animal.isCorrect = false;
+                        allCorrect = false;
+                    }
+                }
+            });
+
+            drawScene();
+
+            if (!allColored) {
+                playSound('error');
+                showNotification('Colora TUTTI gli animali prima di verificare!');
+                return;
+            }
+
+            if (allCorrect) {
+                playSound('success');
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+                openModal();
+            } else {
+                playSound('error');
+                showNotification('Ci sono dei piccoli errori! Controlla quali animali hanno la ❌ e riprova.');
+            }
+        }
+
+        function showNotification(msg) {
+            // Crea un piccolo banner di notifica temporaneo
+            const banner = document.createElement('div');
+            banner.className = 'fixed top-5 left-1/2 -translate-x-1/2 bg-amber-800 text-white font-bold px-6 py-3 rounded-2xl shadow-xl z-50 text-center text-sm md:text-base border-2 border-amber-300 transition-all transform duration-300';
+            banner.innerText = msg;
+            document.body.appendChild(banner);
+
+            setTimeout(() => {
+                banner.style.opacity = '0';
+                setTimeout(() => banner.remove(), 300);
+            }, 3000);
+        }
+
+        function generateNewExercise() {
+            playSound('click');
+            generateExercise();
+        }
+
+        function openModal() {
+            const modal = document.getElementById('feedback-modal');
+            const content = document.getElementById('modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeModalAndRefresh() {
+            const modal = document.getElementById('feedback-modal');
+            const content = document.getElementById('modal-content');
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                generateNewExercise();
+            }, 200);
+        }
+
+        window.onload = () => {
+            resizeCanvas();
+            generateExercise();
+        };
+    </script>
+</body>
+</html>
