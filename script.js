@@ -114,7 +114,8 @@
             document.getElementById('game6-screen').style.display = 'none';
             if (typeof stopGame5 === 'function') stopGame5();
             if (typeof stopGame6 === 'function') stopGame6();
-            window.speechSynthesis.cancel();
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            window.scrollTo(0, 0);
         }
 
         let currentGameId = null;
@@ -139,6 +140,9 @@
                 else if (!g6Initialized) initGame6();
                 else resumeGame6();
             }
+
+            // Su smartphone/tablet evita di aprire un gioco mantenendo lo scroll del menu.
+            window.scrollTo(0, 0);
         }
 
         function showModal(title, text, type, customBtnText = "Ho capito", customCallback = null) {
@@ -2298,8 +2302,47 @@
         }
 
 
+        // =========================================================
+        // PIRO — profilo responsive
+        // Non usa lo user-agent: osserva spazio, orientamento e tipo di input.
+        // In questo modo funziona anche su LIM, Chromebook, tablet e finestre ridimensionate.
+        // =========================================================
+        let piroResponsiveFrame = null;
+
+        function updatePiroResponsiveProfile() {
+            const root = document.documentElement;
+            const width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+            const height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+            const coarse = window.matchMedia?.('(pointer: coarse)').matches || false;
+            const hoverless = window.matchMedia?.('(hover: none)').matches || false;
+
+            let layout = 'desktop';
+            if (width < 600) layout = 'phone';
+            else if (width < 1024) layout = 'tablet';
+
+            root.dataset.layout = layout;
+            root.dataset.input = (coarse || hoverless) ? 'touch' : 'pointer';
+            root.dataset.orientation = width >= height ? 'landscape' : 'portrait';
+            root.style.setProperty('--piro-vh', `${height * 0.01}px`);
+        }
+
+        function schedulePiroResponsiveUpdate() {
+            if (piroResponsiveFrame) cancelAnimationFrame(piroResponsiveFrame);
+            piroResponsiveFrame = requestAnimationFrame(() => {
+                piroResponsiveFrame = null;
+                updatePiroResponsiveProfile();
+            });
+        }
+
+        window.addEventListener('resize', schedulePiroResponsiveUpdate, { passive: true });
+        window.addEventListener('orientationchange', schedulePiroResponsiveUpdate, { passive: true });
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', schedulePiroResponsiveUpdate, { passive: true });
+        }
+
         // Avvio Applicazione
         window.onload = function() {
+            updatePiroResponsiveProfile();
             loadPrefs();
             showMenu();
         };
