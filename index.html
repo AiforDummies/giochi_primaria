@@ -14,7 +14,7 @@
 </head>
 <body>
 <div id="version-test">
-    VERSIONE BOSCO — 5 SECONDI + MUSICA
+    VERSIONE TEST — GIOCO 6 ABBINA LA PAROLA
 </div>
 
     <div class="container">
@@ -26,7 +26,7 @@
             </div>
             <div class="adult-note-content">
                 Questa web-app segue rigorose linee guida di <strong>accessibilità DSA</strong> e <strong>inclusione sensoriale autism-friendly</strong>:<br><br>
-                - <strong>Nessuna fretta:</strong> Assenza di timer, vite e punteggi punitivi.<br>
+                - <strong>Nessuna fretta:</strong> Nessun timer punitivo, vite o classifiche. Quando un’attività usa il tempo, serve solo a sostenere la dinamica del gioco.<br>
                 - <strong>Leggibilità e Contrasto:</strong> Fondo avorio antiriverbero, testi grigio-scuro caldi, font Lexend e Atkinson Hyperlegible con spaziatura ottimizzata.<br>
                 - <strong>Ritorno Gentile:</strong> L'errore non viene mai evidenziato in rosso o con suoni allarmanti, ma con un colore albicocca tenue che invita a riprovare.<br>
                 - <strong>Integrazione Multisensoriale:</strong> Icone SVG flat chiare ed essenziali con etichette visive, affiancate da sintesi vocale (TTS) attivabile a scelta.<br>
@@ -37,7 +37,7 @@
         <!-- SCHERMATA MENU -->
         <div id="menu-screen">
             <div class="left-col">
-                <div class="tag">Cinque attività, nessuna fretta</div>
+                <div class="tag">Sei attività, nessuna fretta</div>
                 <h1>Giochi da fare insieme,<br>un passo alla volta.</h1>
                 <p class="subtitle">Consegne brevi, colori tenui e feedback gentile. Scegli un'attività per iniziare, puoi cambiare in qualsiasi momento.</p>
 
@@ -78,6 +78,14 @@
                     <div>
                         <div class="game-title">Il Bosco del Silenzio</div>
                         <div style="opacity:0.8; font-size:0.9em;">Un gioco cooperativo di ascolto</div>
+                    </div>
+                </div>
+
+                <div class="game-btn" onclick="openGame('game6')">
+                    <div class="game-icon" style="background: var(--color-burro);">🖼️</div>
+                    <div>
+                        <div class="game-title">Abbina la Parola</div>
+                        <div style="opacity:0.8; font-size:0.9em;">Associa parola e immagine, un passo alla volta</div>
                     </div>
                 </div>
             </div>
@@ -247,7 +255,131 @@
         </div>
     </div>
 
-    <!-- MODAL FEEDBACK GENTILE -->
+
+
+        <!-- SCHERMATA GIOCO 6: ABBINA LA PAROLA -->
+        <div id="game6-screen" class="game-screen">
+            <div class="top-bar">
+                <button class="btn-nav" onclick="showMenu()">← Torna ai giochi</button>
+                <div class="cat-badge" id="g6-badge">🖼️ 3 stimoli · Errorless</div>
+                <button class="btn-tts" id="g6-repeat-presentation-btn" onclick="repeatG6Presentation()" style="display:none;">🔊 Ripeti le parole</button>
+            </div>
+
+            <div id="g6-start-panel" class="g6-start-panel">
+                <div class="g6-start-icon" aria-hidden="true">🖼️🔤</div>
+                <h2>Prepara l’attività</h2>
+                <p class="g6-start-lead">Scegli come presentare le parole prima di iniziare. Le impostazioni possono essere cambiate anche dopo.</p>
+
+                <div class="g6-start-options">
+                    <fieldset class="g6-choice-group">
+                        <legend>🗣️ Chi pronuncia le parole?</legend>
+                        <button type="button" class="g6-choice-card selected" id="g6-voice-adult" aria-pressed="true" onclick="selectG6Voice(false)">
+                            <span class="g6-choice-icon" aria-hidden="true">👩‍🏫</span>
+                            <span><strong>Le pronuncio io</strong><small>Nessuna sintesi vocale. L’adulto può nominare e sillabare con i propri tempi.</small></span>
+                        </button>
+                        <button type="button" class="g6-choice-card" id="g6-voice-tts" aria-pressed="false" onclick="selectG6Voice(true)">
+                            <span class="g6-choice-icon" aria-hidden="true">🔊</span>
+                            <span><strong>Sintesi vocale</strong><small>Il gioco pronuncia e sillaba automaticamente le parole.</small></span>
+                        </button>
+                    </fieldset>
+
+                    <fieldset class="g6-choice-group">
+                        <legend>👀 Come appaiono le carte?</legend>
+                        <button type="button" class="g6-choice-card selected" id="g6-label-visible" aria-pressed="true" onclick="selectG6LabelMode('visible')">
+                            <span class="g6-choice-icon" aria-hidden="true">🐱<span class="g6-mini-word">GATTO</span></span>
+                            <span><strong>Immagine + parola</strong><small>Versione iniziale: la parola resta visibile sotto ogni immagine.</small></span>
+                        </button>
+                        <button type="button" class="g6-choice-card" id="g6-label-reveal" aria-pressed="false" onclick="selectG6LabelMode('reveal')">
+                            <span class="g6-choice-icon" aria-hidden="true">🐱✨</span>
+                            <span><strong>Solo immagine</strong><small>Più difficile: la parola si svela soltanto dopo l’associazione corretta.</small></span>
+                        </button>
+                    </fieldset>
+                </div>
+
+                <button type="button" class="action-btn g6-start-button" onclick="startG6FromSetup()">▶ Inizia l’attività</button>
+            </div>
+
+            <div id="g6-activity" class="g6-activity" style="display:none;">
+            <div class="instruction-box" id="g6-instruction">
+                Guarda le immagini. Poi abbina la parola scritta alla carta corretta.
+            </div>
+
+            <div class="g6-progress-row" aria-label="Avanzamento delle associazioni">
+                <span class="g6-progress-label">Associazioni</span>
+                <div id="g6-progress-dots" class="g6-progress-dots"></div>
+            </div>
+
+            <div class="g6-layout">
+                <section class="g6-workspace" aria-label="Spazio di lavoro">
+                    <div class="g6-section-title">1. Guarda le carte</div>
+                    <div id="g6-stimuli" class="g6-stimuli" aria-live="polite"></div>
+
+                    <div class="g6-target-area">
+                        <div class="g6-section-title">2. Abbina la parola</div>
+                        <div id="g6-target-hint" class="g6-target-hint">Prima ascoltiamo insieme le parole.</div>
+                        <div id="g6-target-word" class="g6-target-word is-hidden" draggable="true" tabindex="0" role="button" aria-label="Parola da abbinare"></div>
+                        <div class="g6-target-actions">
+                            <button class="action-btn secondary" id="g6-help-btn" onclick="requestG6Help()" disabled>✨ Aiutami</button>
+                            <button class="action-btn secondary" id="g6-repeat-target-btn" onclick="repeatG6Target()" style="display:none;">🔊 Ripeti</button>
+                        </div>
+                    </div>
+
+                    <div id="g6-status" class="g6-status" aria-live="polite">Prepariamo le tre carte.</div>
+                </section>
+
+                <aside class="g6-completed-panel" aria-label="Associazioni completate">
+                    <div class="g6-completed-title">✅ Completate</div>
+                    <div id="g6-completed" class="g6-completed"></div>
+                    <div id="g6-completed-empty" class="g6-completed-empty">Le coppie completate arriveranno qui.</div>
+                </aside>
+            </div>
+
+            <div class="g6-controls">
+                <button class="action-btn" onclick="newG6Set()">🔄 Nuove parole</button>
+                <button class="action-btn secondary" onclick="restartG6Set()">↺ Ricomincia questa terna</button>
+                <button class="action-btn secondary" onclick="showG6Setup()">⚙️ Modalità</button>
+            </div>
+
+            <details class="g6-adult-panel">
+                <summary>👩‍🏫 Impostazioni educatore</summary>
+                <div class="g6-adult-grid">
+                    <label>
+                        <span>Numero di stimoli</span>
+                        <select id="g6-count-select" onchange="changeG6Settings()">
+                            <option value="3" selected>3 stimoli</option>
+                            <option value="2">2 stimoli (pre-step)</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Parole sotto le immagini</span>
+                        <select id="g6-label-select" onchange="changeG6PresentationSettings()">
+                            <option value="visible" selected>Visibili</option>
+                            <option value="reveal">Nascoste · si svelano dopo</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Voce durante il gioco</span>
+                        <select id="g6-voice-select" onchange="changeG6PresentationSettings()">
+                            <option value="adult" selected>Voce dell’adulto</option>
+                            <option value="tts">Sintesi vocale</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Tipo di discriminazione</span>
+                        <select id="g6-difficulty-select" onchange="changeG6Settings()">
+                            <option value="prime" selected>Prime parole · molto diverse</option>
+                            <option value="varieta">Nuove parole · repertorio più ampio</option>
+                            <option value="fine">Discriminazione più fine</option>
+                        </select>
+                    </label>
+                </div>
+                <p class="g6-adult-note"><strong>Procedura errorless:</strong> non compaiono “no”, croci o penalità. Se viene scelta una carta diversa, il gioco rende evidente la risposta corretta e lascia attiva solo quella. Se il bambino attende, l’aiuto cresce gradualmente. Le parole da abbinare vengono sempre presentate in ordine diverso rispetto alle carte.</p>
+                <p class="g6-adult-note">Il gioco non prova a misurare attenzione, collaborazione o comportamenti del bambino: questi aspetti restano affidati all’osservazione dell’adulto. Al termine del ciclo compare un promemoria per fornire rapidamente il rinforzo scelto prima dell’attività.</p>
+            </details>
+            </div>
+        </div>
+
+        <!-- MODAL FEEDBACK GENTILE -->
     <div id="modal" class="modal">
         <div class="modal-content">
             <h2 id="modal-title" style="margin-bottom:15px;"></h2>

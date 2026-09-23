@@ -111,7 +111,9 @@
             document.getElementById('game3-screen').style.display = 'none';
             document.getElementById('game4-screen').style.display = 'none';
             document.getElementById('game5-screen').style.display = 'none';
+            document.getElementById('game6-screen').style.display = 'none';
             if (typeof stopGame5 === 'function') stopGame5();
+            if (typeof stopGame6 === 'function') stopGame6();
             window.speechSynthesis.cancel();
         }
 
@@ -119,8 +121,9 @@
 
         function openGame(gameId) {
             if (currentGameId === 'game5' && gameId !== 'game5' && typeof stopGame5 === 'function') stopGame5();
+            if (currentGameId === 'game6' && gameId !== 'game6' && typeof stopGame6 === 'function') stopGame6();
             document.getElementById('menu-screen').style.display = 'none';
-            ['game1','game2','game3','game4','game5'].forEach(id => {
+            ['game1','game2','game3','game4','game5','game6'].forEach(id => {
                 document.getElementById(id + '-screen').style.display = id === gameId ? 'block' : 'none';
             });
             currentGameId = gameId;
@@ -131,6 +134,11 @@
             if (gameId === 'game3' && !g3Initialized) initGame3();
             if (gameId === 'game4' && !g4Initialized) startGame4();
             if (gameId === 'game5') initGame5();
+            if (gameId === 'game6') {
+                if (!g6State.setupConfirmed) showG6Setup();
+                else if (!g6Initialized) initGame6();
+                else resumeGame6();
+            }
         }
 
         function showModal(title, text, type, customBtnText = "Ho capito", customCallback = null) {
@@ -1656,6 +1664,639 @@
                 showModal("Contiamo insieme", "Prova a ricontare le figure una per una con calma.", "retry");
             }
         }
+
+
+
+        // =========================================================
+        // GIOCO 6 — ABBINA LA PAROLA
+        // Associazione parola-immagine con prompting errorless.
+        // =========================================================
+        let g6Initialized = false;
+        let g6PromptSoftTimer = null;
+        let g6PromptTotalTimer = null;
+        let g6PresentationTimers = [];
+
+        const g6Items = {
+            sole:      { word:'SOLE',      emoji:'☀️', syllables:'SO-LE' },
+            mela:      { word:'MELA',      emoji:'🍎', syllables:'ME-LA' },
+            gatto:     { word:'GATTO',     emoji:'🐱', syllables:'GAT-TO' },
+            cane:      { word:'CANE',      emoji:'🐶', syllables:'CA-NE' },
+            fiore:     { word:'FIORE',     emoji:'🌸', syllables:'FIO-RE' },
+            treno:     { word:'TRENO',     emoji:'🚂', syllables:'TRE-NO' },
+            luna:      { word:'LUNA',      emoji:'🌙', syllables:'LU-NA' },
+            pane:      { word:'PANE',      emoji:'🍞', syllables:'PA-NE' },
+            rana:      { word:'RANA',      emoji:'🐸', syllables:'RA-NA' },
+            orso:      { word:'ORSO',      emoji:'🐻', syllables:'OR-SO' },
+            uva:       { word:'UVA',       emoji:'🍇', syllables:'U-VA' },
+            casa:      { word:'CASA',      emoji:'🏠', syllables:'CA-SA' },
+            nave:      { word:'NAVE',      emoji:'🚢', syllables:'NA-VE' },
+            dado:      { word:'DADO',      emoji:'🎲', syllables:'DA-DO' },
+            pesce:     { word:'PESCE',     emoji:'🐟', syllables:'PE-SCE' },
+            zaino:     { word:'ZAINO',     emoji:'🎒', syllables:'ZAI-NO' },
+            auto:      { word:'AUTO',      emoji:'🚗', syllables:'AU-TO' },
+            elefante:  { word:'ELEFANTE',  emoji:'🐘', syllables:'E-LE-FAN-TE' },
+            libro:     { word:'LIBRO',     emoji:'📘', syllables:'LI-BRO' },
+            topo:      { word:'TOPO',      emoji:'🐭', syllables:'TO-PO' },
+            banana:    { word:'BANANA',    emoji:'🍌', syllables:'BA-NA-NA' },
+            stella:    { word:'STELLA',    emoji:'⭐', syllables:'STEL-LA' },
+            chiave:    { word:'CHIAVE',    emoji:'🔑', syllables:'CHIA-VE' },
+            volpe:     { word:'VOLPE',     emoji:'🦊', syllables:'VOL-PE' },
+            carota:    { word:'CAROTA',    emoji:'🥕', syllables:'CA-RO-TA' },
+            mano:      { word:'MANO',      emoji:'✋', syllables:'MA-NO' },
+            mare:      { word:'MARE',      emoji:'🌊', syllables:'MA-RE' },
+            palla:     { word:'PALLA',     emoji:'⚽', syllables:'PAL-LA' },
+            scarpa:    { word:'SCARPA',    emoji:'👟', syllables:'SCAR-PA' },
+            albero:    { word:'ALBERO',    emoji:'🌳', syllables:'AL-BE-RO' },
+            fragola:   { word:'FRAGOLA',   emoji:'🍓', syllables:'FRA-GO-LA' },
+            limone:    { word:'LIMONE',    emoji:'🍋', syllables:'LI-MO-NE' },
+            bici:      { word:'BICI',      emoji:'🚲', syllables:'BI-CI' },
+            farfalla:  { word:'FARFALLA',  emoji:'🦋', syllables:'FAR-FAL-LA' },
+            torta:     { word:'TORTA',     emoji:'🎂', syllables:'TOR-TA' },
+            ombrello:  { word:'OMBRELLO',  emoji:'☂️', syllables:'OM-BREL-LO' }
+        };
+
+        // Terne curate: nelle prime fasi le parole iniziano con lettere diverse.
+        const g6PrimeSets = [
+            ['sole','mela','gatto'],
+            ['cane','fiore','treno'],
+            ['luna','pane','rana'],
+            ['orso','uva','casa'],
+            ['nave','dado','pesce'],
+            ['zaino','auto','elefante'],
+            ['libro','topo','banana'],
+            ['stella','chiave','volpe'],
+            ['albero','fragola','bici'],
+            ['ombrello','limone','torta']
+        ];
+
+        // Livello opzionale: parole più simili, da usare solo quando la discriminazione di base è stabile.
+        const g6FineSets = [
+            ['cane','casa','carota'],
+            ['mela','mano','mare'],
+            ['pane','palla','pesce'],
+            ['sole','stella','scarpa'],
+            ['libro','luna','limone'],
+            ['topo','treno','torta']
+        ];
+
+        const g6State = {
+            setIndex: 0,
+            items: [],
+            targetOrder: [],
+            targetIndex: 0,
+            completed: [],
+            phase: 'idle',
+            guidedKey: null,
+            difficulty: 'prime',
+            count: 3,
+            lastPrimeIndex: -1,
+            lastFineIndex: -1,
+            instruction: 'Abbina.',
+            voiceEnabled: false,
+            cardWordMode: 'visible',
+            setupConfirmed: false
+        };
+
+        function g6Shuffle(array) {
+            const a = [...array];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        function g6PickDifferentIndex(length, previous) {
+            if (length <= 1) return 0;
+            let idx = Math.floor(Math.random() * length);
+            if (idx === previous) idx = (idx + 1 + Math.floor(Math.random() * (length - 1))) % length;
+            return idx;
+        }
+
+        function g6MakeVarietySet(count) {
+            const keys = Object.keys(g6Items);
+            const shuffled = g6Shuffle(keys);
+            const chosen = [];
+            const initials = new Set();
+            for (const key of shuffled) {
+                const first = g6Items[key].word.charAt(0);
+                if (initials.has(first)) continue;
+                chosen.push(key);
+                initials.add(first);
+                if (chosen.length === count) break;
+            }
+            return chosen;
+        }
+
+        function g6ChooseKeys() {
+            if (g6State.difficulty === 'fine') {
+                const idx = g6PickDifferentIndex(g6FineSets.length, g6State.lastFineIndex);
+                g6State.lastFineIndex = idx;
+                return g6FineSets[idx].slice(0, g6State.count);
+            }
+            if (g6State.difficulty === 'varieta') return g6MakeVarietySet(g6State.count);
+            const idx = g6PickDifferentIndex(g6PrimeSets.length, g6State.lastPrimeIndex);
+            g6State.lastPrimeIndex = idx;
+            return g6PrimeSets[idx].slice(0, g6State.count);
+        }
+
+
+        function syncG6SetupUI() {
+            const adultBtn = document.getElementById('g6-voice-adult');
+            const ttsBtn = document.getElementById('g6-voice-tts');
+            const visibleBtn = document.getElementById('g6-label-visible');
+            const revealBtn = document.getElementById('g6-label-reveal');
+            if (adultBtn && ttsBtn) {
+                adultBtn.classList.toggle('selected', !g6State.voiceEnabled);
+                ttsBtn.classList.toggle('selected', g6State.voiceEnabled);
+                adultBtn.setAttribute('aria-pressed', String(!g6State.voiceEnabled));
+                ttsBtn.setAttribute('aria-pressed', String(g6State.voiceEnabled));
+                if (!('speechSynthesis' in window)) {
+                    ttsBtn.disabled = true;
+                    ttsBtn.title = 'Sintesi vocale non disponibile in questo browser';
+                }
+            }
+            if (visibleBtn && revealBtn) {
+                const reveal = g6State.cardWordMode === 'reveal';
+                visibleBtn.classList.toggle('selected', !reveal);
+                revealBtn.classList.toggle('selected', reveal);
+                visibleBtn.setAttribute('aria-pressed', String(!reveal));
+                revealBtn.setAttribute('aria-pressed', String(reveal));
+            }
+            const voiceSelect = document.getElementById('g6-voice-select');
+            const labelSelect = document.getElementById('g6-label-select');
+            if (voiceSelect) voiceSelect.value = g6State.voiceEnabled ? 'tts' : 'adult';
+            if (labelSelect) labelSelect.value = g6State.cardWordMode;
+            updateG6VoiceControls();
+        }
+
+        function selectG6Voice(enabled) {
+            if (enabled && !('speechSynthesis' in window)) return;
+            g6State.voiceEnabled = !!enabled;
+            if (!enabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+            syncG6SetupUI();
+        }
+
+        function selectG6LabelMode(mode) {
+            g6State.cardWordMode = mode === 'reveal' ? 'reveal' : 'visible';
+            syncG6SetupUI();
+        }
+
+        function updateG6VoiceControls() {
+            const repeatPresentation = document.getElementById('g6-repeat-presentation-btn');
+            if (repeatPresentation) repeatPresentation.style.display = g6State.voiceEnabled ? 'flex' : 'none';
+            const repeatTarget = document.getElementById('g6-repeat-target-btn');
+            if (repeatTarget) repeatTarget.style.display = g6State.voiceEnabled ? '' : 'none';
+        }
+
+        function showG6Setup() {
+            g6State.setupConfirmed = false;
+            clearG6Timers();
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            const startPanel = document.getElementById('g6-start-panel');
+            const activity = document.getElementById('g6-activity');
+            if (startPanel) startPanel.style.display = 'block';
+            if (activity) activity.style.display = 'none';
+            syncG6SetupUI();
+            updateG6Badge();
+        }
+
+        function startG6FromSetup() {
+            g6State.setupConfirmed = true;
+            const startPanel = document.getElementById('g6-start-panel');
+            const activity = document.getElementById('g6-activity');
+            if (startPanel) startPanel.style.display = 'none';
+            if (activity) activity.style.display = 'block';
+            syncG6SetupUI();
+            initGame6(true);
+        }
+
+        function updateG6InstructionText() {
+            const instruction = document.getElementById('g6-instruction');
+            if (!instruction) return;
+            const voicePart = g6State.voiceEnabled
+                ? 'Guarda e ascolta le immagini.'
+                : 'Guarda le immagini mentre l’adulto le nomina.';
+            const labelPart = g6State.cardWordMode === 'reveal'
+                ? ' Poi abbina la parola scritta all’immagine: il nome sotto la carta si svelerà dopo la risposta corretta.'
+                : ' Poi abbina la parola scritta alla carta con la stessa parola.';
+            instruction.textContent = voicePart + labelPart;
+        }
+
+        function clearG6Timers() {
+            if (g6PromptSoftTimer) clearTimeout(g6PromptSoftTimer);
+            if (g6PromptTotalTimer) clearTimeout(g6PromptTotalTimer);
+            g6PromptSoftTimer = null;
+            g6PromptTotalTimer = null;
+            g6PresentationTimers.forEach(clearTimeout);
+            g6PresentationTimers = [];
+        }
+
+        function initGame6(forceNew = true) {
+            g6Initialized = true;
+            if (forceNew) g6State.setIndex++;
+            clearG6Timers();
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+            const keys = g6ChooseKeys();
+            // Ordine delle carte randomizzato. L'ordine delle parole verrà randomizzato separatamente.
+            g6State.items = g6Shuffle(keys.map(key => ({ key, ...g6Items[key] })));
+            g6State.targetOrder = [];
+            g6State.targetIndex = 0;
+            g6State.completed = [];
+            g6State.phase = 'presenting';
+            g6State.guidedKey = null;
+
+            renderG6Stimuli();
+            renderG6Completed();
+            renderG6Progress();
+            updateG6Badge();
+            updateG6InstructionText();
+            syncG6SetupUI();
+
+            const target = document.getElementById('g6-target-word');
+            target.textContent = '';
+            target.dataset.key = '';
+            target.className = 'g6-target-word is-hidden';
+            document.getElementById('g6-help-btn').disabled = true;
+            document.getElementById('g6-target-hint').textContent = g6State.voiceEnabled
+                ? 'Prima ascoltiamo insieme le parole.'
+                : 'Prima l’adulto presenta e nomina le immagini.';
+            document.getElementById('g6-status').textContent = g6State.voiceEnabled
+                ? `Guarda le ${g6State.count} carte mentre le nominiamo.`
+                : `Guarda le ${g6State.count} carte: l’adulto può nominarle e sillabarle con calma.`;
+
+            // Piccolo ritardo per lasciare stabilizzare la schermata dopo il click dal menu.
+            g6PresentationTimers.push(setTimeout(() => startG6Presentation(), 450));
+        }
+
+        function updateG6Badge() {
+            const levelText = g6State.difficulty === 'prime' ? 'Prime parole' :
+                              g6State.difficulty === 'varieta' ? 'Nuove parole' : 'Discriminazione fine';
+            const cardModeText = g6State.cardWordMode === 'reveal' ? 'Solo immagini' : 'Parole visibili';
+            const voiceText = g6State.voiceEnabled ? '🔊 voce' : '👩‍🏫 adulto';
+            document.getElementById('g6-badge').textContent = `🖼️ ${g6State.count} stimoli · ${cardModeText} · ${voiceText}`;
+        }
+
+        function renderG6Stimuli() {
+            const box = document.getElementById('g6-stimuli');
+            box.innerHTML = '';
+            box.style.setProperty('--g6-cols', g6State.count);
+
+            g6State.items.forEach(item => {
+                const slot = document.createElement('div');
+                slot.className = 'g6-stimulus-slot';
+                slot.dataset.key = item.key;
+
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.className = 'g6-stimulus-card';
+                card.dataset.key = item.key;
+                card.setAttribute('aria-label', g6State.cardWordMode === 'reveal'
+                    ? 'Immagine. Seleziona per abbinare.'
+                    : `${item.word}. Seleziona per abbinare.`);
+                const concealedClass = g6State.cardWordMode === 'reveal' ? ' g6-word-concealed' : '';
+                card.innerHTML = `<span class="g6-emoji" aria-hidden="true">${item.emoji}</span><span class="g6-word-label${concealedClass}">${item.word}</span>`;
+                card.onclick = () => tryG6Match(item.key);
+                card.ondragover = (e) => e.preventDefault();
+                card.ondrop = (e) => { e.preventDefault(); tryG6Match(item.key); };
+                slot.appendChild(card);
+                box.appendChild(slot);
+            });
+        }
+
+        function renderG6Completed() {
+            const box = document.getElementById('g6-completed');
+            const empty = document.getElementById('g6-completed-empty');
+            box.innerHTML = '';
+            empty.style.display = g6State.completed.length ? 'none' : 'block';
+            g6State.completed.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'g6-completed-card';
+                el.innerHTML = `<span class="g6-completed-emoji" aria-hidden="true">${item.emoji}</span><span class="g6-completed-word">${item.word}</span>`;
+                box.appendChild(el);
+            });
+        }
+
+        function renderG6Progress() {
+            const box = document.getElementById('g6-progress-dots');
+            box.innerHTML = '';
+            for (let i = 0; i < g6State.count; i++) {
+                const dot = document.createElement('span');
+                dot.className = 'g6-progress-dot' + (i < g6State.completed.length ? ' done' : '');
+                dot.setAttribute('aria-label', i < g6State.completed.length ? 'Associazione completata' : 'Associazione da completare');
+                box.appendChild(dot);
+            }
+        }
+
+        function startG6Presentation() {
+            clearG6Timers();
+            g6State.phase = 'presenting';
+            document.getElementById('g6-help-btn').disabled = true;
+            const cards = [...document.querySelectorAll('.g6-stimulus-card')];
+            cards.forEach(c => c.classList.remove('presenting','prompt-soft','prompt-total','g6-guided-muted'));
+
+            let delay = 0;
+            g6State.items.forEach((item, index) => {
+                g6PresentationTimers.push(setTimeout(() => {
+                    cards.forEach(c => c.classList.remove('presenting'));
+                    const card = document.querySelector(`.g6-stimulus-card[data-key="${item.key}"]`);
+                    if (card) card.classList.add('presenting');
+                    document.getElementById('g6-status').textContent = g6State.cardWordMode === 'reveal'
+                        ? 'Guarda questa immagine.'
+                        : item.word;
+                    speakG6Word(item, false);
+                }, delay));
+                // Con la voce dell'adulto lasciamo più tempo per denominare e sillabare ogni stimolo.
+                delay += g6State.voiceEnabled ? 1450 : 2300;
+            });
+
+            g6PresentationTimers.push(setTimeout(() => {
+                cards.forEach(c => c.classList.remove('presenting'));
+                startG6Matching();
+            }, delay + 350));
+        }
+
+        function repeatG6Presentation() {
+            if (!g6Initialized) return;
+            startG6Presentation();
+        }
+
+        function startG6Matching() {
+            g6State.phase = 'matching';
+            // L'ordine dei target viene creato indipendentemente da quello delle carte.
+            g6State.targetOrder = g6Shuffle(g6State.items.map(item => item.key));
+            // Evita, quando possibile, che il primo target coincida con la prima carta.
+            if (g6State.targetOrder.length > 1 && g6State.targetOrder[0] === g6State.items[0].key) {
+                [g6State.targetOrder[0], g6State.targetOrder[1]] = [g6State.targetOrder[1], g6State.targetOrder[0]];
+            }
+            g6State.targetIndex = 0;
+            showG6Target();
+        }
+
+        function getG6CurrentItem() {
+            const key = g6State.targetOrder[g6State.targetIndex];
+            return g6State.items.find(item => item.key === key) || null;
+        }
+
+        function showG6Target() {
+            clearG6Timers();
+            resetG6PromptVisuals();
+            const item = getG6CurrentItem();
+            if (!item) return finishG6Cycle();
+
+            g6State.phase = 'matching';
+            g6State.guidedKey = null;
+            g6State.instruction = g6Shuffle(['Metti uguale.', 'Abbina.', 'Associa.'])[0];
+
+            const target = document.getElementById('g6-target-word');
+            target.textContent = item.word;
+            target.dataset.key = item.key;
+            target.className = 'g6-target-word';
+            target.ondragstart = (e) => {
+                e.dataTransfer.setData('text/plain', item.key);
+                e.dataTransfer.effectAllowed = 'move';
+            };
+            document.getElementById('g6-help-btn').disabled = false;
+            document.getElementById('g6-target-hint').textContent = g6State.cardWordMode === 'reveal'
+                ? 'Leggi la parola e trova l’immagine corrispondente.'
+                : 'Leggi la parola e trova la carta uguale.';
+            document.getElementById('g6-status').textContent = g6State.instruction;
+            speakG6Target(item);
+            scheduleG6Prompts();
+        }
+
+        function speakG6Word(item, withSyllables = true) {
+            if (!g6State.voiceEnabled || !('speechSynthesis' in window) || !item) return;
+            window.speechSynthesis.cancel();
+            const syllables = item.syllables.split('-').join('. ');
+            const utterance = new SpeechSynthesisUtterance(withSyllables ? `${item.word}. ${syllables}.` : item.word);
+            utterance.lang = 'it-IT';
+            utterance.rate = withSyllables ? 0.72 : 0.82;
+            utterance.pitch = 1.02;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function speakG6Target(item) {
+            if (!g6State.voiceEnabled || !('speechSynthesis' in window) || !item) return;
+            window.speechSynthesis.cancel();
+            const syllables = item.syllables.split('-').join('. ');
+            const utterance = new SpeechSynthesisUtterance(`${item.word}. ${syllables}. ${g6State.instruction}`);
+            utterance.lang = 'it-IT';
+            utterance.rate = 0.70;
+            utterance.pitch = 1.02;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function repeatG6Target() {
+            const item = getG6CurrentItem();
+            if (item) speakG6Target(item);
+        }
+
+        function scheduleG6Prompts() {
+            if (g6PromptSoftTimer) clearTimeout(g6PromptSoftTimer);
+            if (g6PromptTotalTimer) clearTimeout(g6PromptTotalTimer);
+            // Prompt graduato: prima un indizio visivo, poi l'aiuto totale.
+            g6PromptSoftTimer = setTimeout(() => activateG6Prompt(false), 6500);
+            g6PromptTotalTimer = setTimeout(() => activateG6Prompt(true), 11500);
+        }
+
+        function resetG6PromptVisuals() {
+            document.querySelectorAll('.g6-stimulus-card').forEach(card => {
+                card.classList.remove('prompt-soft','prompt-total','g6-guided-muted');
+            });
+            const target = document.getElementById('g6-target-word');
+            if (target) target.classList.remove('prompt-target');
+        }
+
+        function activateG6Prompt(total = true) {
+            if (g6State.phase !== 'matching') return;
+            const item = getG6CurrentItem();
+            if (!item) return;
+            const correct = document.querySelector(`.g6-stimulus-card[data-key="${item.key}"]`);
+            if (!correct) return;
+
+            resetG6PromptVisuals();
+            document.getElementById('g6-target-word').classList.add('prompt-target');
+            if (total) {
+                if (g6PromptSoftTimer) clearTimeout(g6PromptSoftTimer);
+                if (g6PromptTotalTimer) clearTimeout(g6PromptTotalTimer);
+                g6PromptSoftTimer = null;
+                g6PromptTotalTimer = null;
+                g6State.guidedKey = item.key;
+                document.querySelectorAll('.g6-stimulus-card').forEach(card => {
+                    if (card.dataset.key === item.key) card.classList.add('prompt-total');
+                    else card.classList.add('g6-guided-muted');
+                });
+                document.getElementById('g6-status').textContent = g6State.cardWordMode === 'reveal'
+                    ? 'Guarda qui: questa è l’immagine da scegliere.'
+                    : `Guarda qui: ${item.word}.`;
+                speakG6Word(item, true);
+            } else {
+                correct.classList.add('prompt-soft');
+                document.getElementById('g6-status').textContent = 'Guarda bene le immagini: una carta ti può aiutare.';
+            }
+        }
+
+        function requestG6Help() {
+            activateG6Prompt(true);
+        }
+
+        function tryG6Match(chosenKey) {
+            if (g6State.phase !== 'matching') return;
+            const item = getG6CurrentItem();
+            if (!item) return;
+
+            // Durante l'aiuto totale, le alternative non producono alcun feedback negativo.
+            if (g6State.guidedKey && chosenKey !== g6State.guidedKey) return;
+
+            if (chosenKey === item.key) {
+                completeG6Match(item);
+            } else {
+                // Nessun “no”, nessuna croce, nessuna penalità: si passa subito all'aiuto totale.
+                activateG6Prompt(true);
+            }
+        }
+
+        function completeG6Match(item) {
+            clearG6Timers();
+            g6State.phase = 'transition';
+            g6State.guidedKey = null;
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            playSound('pop');
+
+            const card = document.querySelector(`.g6-stimulus-card[data-key="${item.key}"]`);
+            let transitionDelay = 430;
+            if (card) {
+                card.classList.remove('prompt-soft','prompt-total','g6-guided-muted');
+                if (g6State.cardWordMode === 'reveal') {
+                    const label = card.querySelector('.g6-word-label');
+                    if (label) {
+                        label.classList.remove('g6-word-concealed');
+                        label.classList.add('g6-word-revealed');
+                    }
+                    card.setAttribute('aria-label', `${item.word}. Associazione completata.`);
+                    card.classList.add('g6-reveal-hold');
+                    document.getElementById('g6-status').textContent = `Ecco la parola: ${item.word}.`;
+                    transitionDelay = 1050;
+                } else {
+                    document.getElementById('g6-status').textContent = 'Associazione completata.';
+                }
+            }
+            const target = document.getElementById('g6-target-word');
+            target.classList.remove('prompt-target');
+            target.classList.add('is-hidden');
+            document.getElementById('g6-help-btn').disabled = true;
+
+            setTimeout(() => {
+                if (card) {
+                    card.classList.remove('g6-reveal-hold');
+                    card.classList.add('g6-completing');
+                }
+                setTimeout(() => {
+                    g6State.completed.push(item);
+                    renderG6Completed();
+                    renderG6Progress();
+                    const slot = document.querySelector(`.g6-stimulus-slot[data-key="${item.key}"] .g6-stimulus-card`);
+                    if (slot) slot.classList.add('g6-slot-empty');
+
+                    g6State.targetIndex++;
+                    if (g6State.targetIndex >= g6State.targetOrder.length) {
+                        finishG6Cycle();
+                    } else {
+                        setTimeout(showG6Target, 600);
+                    }
+                }, 360);
+            }, transitionDelay);
+        }
+
+        function finishG6Cycle() {
+            clearG6Timers();
+            g6State.phase = 'complete';
+            document.getElementById('g6-help-btn').disabled = true;
+            document.getElementById('g6-target-word').classList.add('is-hidden');
+            document.getElementById('g6-target-hint').textContent = 'Tutte le associazioni sono complete.';
+            document.getElementById('g6-status').textContent = 'Ottimo lavoro: ciclo completato.';
+            playSound('success');
+
+            setTimeout(() => {
+                const howMany = g6State.count === 3 ? 'tutte e tre le parole' : 'tutte le parole';
+                showModal(
+                    '🌟 Ottimo lavoro!',
+                    `Hai abbinato ${howMany}. È il momento del rinforzo scelto prima dell’attività.`,
+                    'success',
+                    'Nuove parole →',
+                    () => newG6Set()
+                );
+            }, 350);
+        }
+
+        function newG6Set() {
+            closeModal();
+            initGame6(true);
+        }
+
+        function restartG6Set() {
+            clearG6Timers();
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            // Mantiene la stessa terna ma rimischia carte e ordine delle parole.
+            const keys = g6State.items.map(item => item.key);
+            g6State.items = g6Shuffle(keys.map(key => ({ key, ...g6Items[key] })));
+            g6State.targetOrder = [];
+            g6State.targetIndex = 0;
+            g6State.completed = [];
+            g6State.phase = 'presenting';
+            g6State.guidedKey = null;
+            renderG6Stimuli();
+            renderG6Completed();
+            renderG6Progress();
+            document.getElementById('g6-target-word').className = 'g6-target-word is-hidden';
+            document.getElementById('g6-help-btn').disabled = true;
+            document.getElementById('g6-target-hint').textContent = g6State.voiceEnabled
+                ? 'Prima ascoltiamo insieme le parole.'
+                : 'Prima l’adulto presenta e nomina le immagini.';
+            document.getElementById('g6-status').textContent = 'Ricominciano le stesse parole.';
+            g6PresentationTimers.push(setTimeout(startG6Presentation, 400));
+        }
+
+        function stopGame6() {
+            clearG6Timers();
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        }
+
+        function resumeGame6() {
+            if (!g6Initialized) return initGame6();
+            if (g6State.phase === 'presenting') {
+                startG6Presentation();
+            } else if (g6State.phase === 'matching') {
+                scheduleG6Prompts();
+            } else if (g6State.phase === 'transition') {
+                setTimeout(showG6Target, 450);
+            }
+        }
+
+        function changeG6Settings() {
+            const countSelect = document.getElementById('g6-count-select');
+            const difficultySelect = document.getElementById('g6-difficulty-select');
+            if (!countSelect || !difficultySelect) return;
+            g6State.count = parseInt(countSelect.value, 10) || 3;
+            g6State.difficulty = difficultySelect.value || 'prime';
+            if (g6State.setupConfirmed) initGame6(true);
+            else updateG6Badge();
+        }
+
+        function changeG6PresentationSettings() {
+            const voiceSelect = document.getElementById('g6-voice-select');
+            const labelSelect = document.getElementById('g6-label-select');
+            if (voiceSelect) g6State.voiceEnabled = voiceSelect.value === 'tts' && ('speechSynthesis' in window);
+            if (labelSelect) g6State.cardWordMode = labelSelect.value === 'reveal' ? 'reveal' : 'visible';
+            if (!g6State.voiceEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+            syncG6SetupUI();
+            updateG6Badge();
+            updateG6InstructionText();
+            if (g6State.setupConfirmed) initGame6(true);
+        }
+
 
         // Avvio Applicazione
         window.onload = function() {
