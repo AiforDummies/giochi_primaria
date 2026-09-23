@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Giochi Didattici Interattivi - Pregrafismo e Logica</title>
+    <title>PIRO | Giochi e strumenti per l’apprendimento</title>
+    <meta name="description" content="PIRO — Percorsi Interattivi, Risorse e Opportunità. Giochi e strumenti per l’apprendimento, progettati con gradualità, accessibilità e feedback gentili.">
+    <meta name="theme-color" content="#F7F1E3">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐦</text></svg>">
     <!-- Google Fonts: Lexend (Primario) e Atkinson Hyperlegible (DSA / Autism Friendly) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,11 +16,15 @@
 
 </head>
 <body>
-<div id="version-test">
-    VERSIONE TEST — GIOCO 6 ABBINA LA PAROLA
-</div>
-
     <div class="container">
+        <header class="piro-brand" aria-label="PIRO — Percorsi Interattivi, Risorse e Opportunità">
+            <div class="piro-mark" aria-hidden="true">🐦</div>
+            <div class="piro-brand-copy">
+                <div class="piro-name">PIRO</div>
+                <div class="piro-expansion"><strong>P</strong>ercorsi <strong>I</strong>nterattivi, <strong>R</strong>isorse e <strong>O</strong>pportunità</div>
+                <div class="piro-tagline">Giochi e strumenti per l’apprendimento</div>
+            </div>
+        </header>
         <!-- NOTA ADULTI -->
         <div class="adult-note" onclick="toggleNote()">
             <div class="adult-note-header">
@@ -37,9 +44,9 @@
         <!-- SCHERMATA MENU -->
         <div id="menu-screen">
             <div class="left-col">
-                <div class="tag">Sei attività, nessuna fretta</div>
-                <h1>Giochi da fare insieme,<br>un passo alla volta.</h1>
-                <p class="subtitle">Consegne brevi, colori tenui e feedback gentile. Scegli un'attività per iniziare, puoi cambiare in qualsiasi momento.</p>
+                <div class="tag">PIRO • Sei attività, nessuna fretta</div>
+                <h1>Imparare può avere<br>tanti percorsi.</h1>
+                <p class="subtitle">Esplora giochi e strumenti pensati per accompagnare l’apprendimento con gradualità, chiarezza e feedback gentili. Scegli un’attività per iniziare: puoi cambiare in qualsiasi momento.</p>
 
                 <div class="game-btn" onclick="openGame('game1')">
                     <div class="game-icon" style="background: var(--color-cielo);">⭕</div>
